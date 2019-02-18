@@ -26,8 +26,10 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "run-server": "docker-compose -f docker-compose.yml up",
-    "build": "webpack --config webpack.client.config.babel.js"
+    "server": "docker-compose -f docker-compose.yml up",
+    "build": "webpack --config webpack.client.config.babel.js",
+    "app": "nodemon ./src/app.js",
+    "start": "npm run server | npm run build | npm run app"
   },
   "author": "",
   "license": "ISC"
