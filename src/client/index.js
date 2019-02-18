@@ -23,15 +23,18 @@ class MainScene extends Phaser.Scene {
     let client = new nakamajs.Client('defaultkey');
     client.verbose = verboseLogging;
     client.ssl = useSSL;
-    this.authenticateAndHandleSession(client);
+    let socket = this.authenticateAndHandleSession(client);
+    this.createListeners(socket)
   }
 
   async authenticateAndHandleSession(client){
     const email = "keenloklai@gmail.com"
     const password = "3bc8f72e95a9"
-    const randomUserId = "9b4aa952-0669-45db-84b6-ee6d88211b38"
+    const randomUserId = DeviceUUID()
 
-    client.authenticateDevice({id: randomUserId, create: true, username: "user"})
+    // username: "user" can be added to the function below to authenticate user.
+    // Else a random username will be assigned to the user
+    client.authenticateDevice({id: randomUserId, create: true})
     .then(session => {
       console.info("Successfully authenticated:", session);
       // sessionHandler(session);
@@ -77,6 +80,8 @@ class MainScene extends Phaser.Scene {
   }
 
   gameSessionHandler(session, client) {
+    this.id = session.username
+    this.avatar[this.id] = this.add.sprite(0, 0, "avatar")
     const socket = client.createSocket(useSSL, verboseLogging)
     socket.connect(session).then(session => {
       // var id = "<matchid>";
@@ -101,10 +106,10 @@ class MainScene extends Phaser.Scene {
         console.log("Ticket received", ticket);
         ticket = ticket;
       })
-
       socket.onmatchmakermatched = (matched) => {
         console.info("Received MatchmakerMatched message: ", matched);
         console.info("Matched opponents: ", matched.users);
+        this.addPlayers(matched.users)
         const message = {
           match_join: {
             token: matched.token
@@ -116,6 +121,50 @@ class MainScene extends Phaser.Scene {
         });
       }
     })
+
+    this.input.on("pointermove", ({x, y}) => {
+      let id = matchId;
+      let opCode = 1;
+      let data = {x, y}
+      const message = {match_data_send:
+          {match_id: id, op_code: opCode, data: data}
+      }
+      socket.send(message).then(response => {
+        console.log("Data sent", response)
+        this.avatar[this.id].x = x
+        this.avatar[this.id].y = y
+      })
+    })
+
+    socket.onmatchdata = (result) => {
+      let content = result.data;
+      switch (result.op_code) {
+        case 1:
+          // console.log(content, result)
+          let id = result.presence.username
+          this.avatar[id].x = content.x
+          this.avatar[id].y = content.y
+          break
+        default:
+          console.log("Error: wrong op_code", result)
+          break
+      }
+    }
+    return socket
+  }
+
+  addPlayers(users) {
+    for (let i = 0; i < users.length; i++) {
+      let id = users[i].presence.username
+      if (this.avatar[id] !== undefined) {
+        continue
+      }
+      this.avatar[id] = this.add.sprite(0, 0, "avatar")
+    }
+  }
+
+  createListeners(socket) {
+
   }
 }
 
