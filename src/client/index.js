@@ -1,5 +1,6 @@
 let Phaser = require('phaser');
 let nakamajs = require('@heroiclabs/nakama-js')
+let DeviceUUID = require('uuid/v4')
 const verboseLogging = true;
 const useSSL = false;
 
@@ -7,15 +8,15 @@ var currentSession = null;
 var matchId = null;
 var canPlay = false;
 
-class Game extends Phaser.scene {
+class MainScene extends Phaser.Scene {
 
   constructor () {
-    super('main');
+    super({key: 'main'});
     this.avatar = {};
   }
 
   preload() {
-    this.load.image('avatar', './static/avatar.png')
+    this.load.image('avatar', './files/avatar.png')
   }
 
   create() {
@@ -28,13 +29,13 @@ class Game extends Phaser.scene {
   async authenticateAndHandleSession(client){
     const email = "keenloklai@gmail.com"
     const password = "3bc8f72e95a9"
-    const randomUserId = new DeviceUUID().get();
+    const randomUserId = "9b4aa952-0669-45db-84b6-ee6d88211b38"
 
-    client.authenticateDevice({id: randomUserId, create: true, username: "mycustomusername"})
+    client.authenticateDevice({id: randomUserId, create: true, username: "user"})
     .then(session => {
       console.info("Successfully authenticated:", session);
       // sessionHandler(session);
-      this.gameSessionHandler(session);
+      this.gameSessionHandler(session, client);
     })
     .catch(error => {
       console.log("error : ", error);
@@ -75,7 +76,7 @@ class Game extends Phaser.scene {
     })
   }
 
-  gameSessionHandler(session) {
+  gameSessionHandler(session, client) {
     const socket = client.createSocket(useSSL, verboseLogging)
     socket.connect(session).then(session => {
       // var id = "<matchid>";
@@ -117,3 +118,24 @@ class Game extends Phaser.scene {
     })
   }
 }
+
+const game = new Phaser.Game({
+  scene: [MainScene],
+  type: Phaser.AUTO,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  pixelArt: true,
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { y: 0 }
+    }
+  },
+})
+
+const resizeGameToFullScreen = () => {
+  game.resize(window.innerWidth, window.innerHeight)
+}
+
+window.addEventListener('resize', resizeGameToFullScreen)
+window.addEventListener('load', resizeGameToFullScreen)
