@@ -24,7 +24,7 @@ class MainScene extends Phaser.Scene {
     client.verbose = verboseLogging;
     client.ssl = useSSL;
     let socket = this.authenticateAndHandleSession(client);
-    this.createListeners(socket)
+    this.cameras.main.backgroundColor.setTo(255,255,255)
   }
 
   async authenticateAndHandleSession(client){
@@ -163,9 +163,6 @@ class MainScene extends Phaser.Scene {
     }
   }
 
-  createListeners(socket) {
-
-  }
 }
 
 const game = new Phaser.Game({
