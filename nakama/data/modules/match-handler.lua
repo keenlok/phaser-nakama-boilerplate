@@ -24,7 +24,7 @@ function makematch(context, matched_users)
     end
 
     local modulename = "match"
-    local setupstate = { invited = matched_users }
+    local setupstate = { invited = matched_users, debug = false }
     local matchid = nk.match_create(modulename, setupstate)
     return matchid
 end

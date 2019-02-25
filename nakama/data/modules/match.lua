@@ -99,8 +99,6 @@ Expected return these values (all required) in order:
 2. Boolean true if the join attempt should be allowed, false otherwise.
 --]]
 local function match_join_attempt(context, dispatcher, tick, state, presence, metadata)
-  print("match join attempt:\n" .. du.print_r(presence))
-  print("match join attempt metadata:\n" .. du.print_r(metadata))
   if state.debug then
     print("match join attempt:\n" .. du.print_r(presence))
     print("match join attempt metadata:\n" .. du.print_r(metadata))
@@ -264,16 +262,14 @@ Expected return these values (all required) in order:
 1. An (optionally) updated state. May be any non-nil Lua term, or nil to end the match.
 --]]
 local function match_loop(context, dispatcher, tick, state, messages)
-  print("match " .. context.match_id .. " tick " .. tick)
---  print("match " .. context.match_id .. " messages:\n" .. du.print_r(messages))
-  for _, message in ipairs(messages) do
-    print(("Received %s from %s"):format(message.sender.username, message.data))
-    -- PONG message back to sender
-    dispatcher.broadcast_message(message.op_code, message.data, nil, message.sender)
-  end
   if state.debug then
     print("match " .. context.match_id .. " tick " .. tick)
-    print("match " .. context.match_id .. " messages:\n" .. du.print_r(messages))
+--    print("match " .. context.match_id .. " messages:\n" .. du.print_r(messages))
+  end
+  for _, message in ipairs(messages) do
+    print(("Received %s from %s"):format(message.sender.username, message.data))
+    -- broadcast message to all users
+    dispatcher.broadcast_message(message.op_code, message.data, nil, message.sender)
   end
   -- run for 5 minutes
   if tick <=  9000 then
