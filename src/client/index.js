@@ -82,7 +82,7 @@ class MainScene extends Phaser.Scene {
         this.addPlayers(matched.users)
         const message = {
           match_join: {
-            token: matched.token
+            match_id: matched.match_id
           }
         }
         socket.send(message).then(response => {
@@ -106,11 +106,12 @@ class MainScene extends Phaser.Scene {
         match_data_send:
           {match_id: id, op_code: opCode, data: data}
       }
-      socket.send(message).then(response => {
-        console.log('Data sent', response)
-        this.avatar[this.id].x = x
-        this.avatar[this.id].y = y
-      })
+      socket.send(message)
+      // .then(response => {
+      //   console.log('Data sent', response)
+      //   this.avatar[this.id].x = x
+      //   this.avatar[this.id].y = y
+      // })
     })
 
     // Handle received data from match
@@ -118,7 +119,7 @@ class MainScene extends Phaser.Scene {
       let content = result.data
       switch (result.op_code) {
         case MOVE_OPCODE:
-          // console.log(content, result)
+          console.log(content, result)
           let id = result.presence.username
           this.avatar[id].x = content.x
           this.avatar[id].y = content.y

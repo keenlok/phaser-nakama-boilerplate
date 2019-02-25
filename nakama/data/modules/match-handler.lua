@@ -13,6 +13,24 @@ function M.match_init(context, setupstate)
     return gamestate, tickrate, label
 end
 
+function makematch(context, matched_users)
+    -- print matched users
+    for _, user in ipairs(matched_users) do
+        local presence = user.presence
+        print(("Matched user '%s' named '%s'"):format(presence.user_id, presence.username))
+        for k, v in pairs(user.properties) do
+            print(("Matched on '%s' value '%s'"):format(k, v))
+        end
+    end
+
+    local modulename = "pingpong"
+    local setupstate = { invited = matched_users }
+    local matchid = nk.match_create("match", setupstate)
+    return matchid
+end
+
+nk.register_matchmaker_matched(makematch)
+
 function M.match_join_attempt(context, dispatcher, tick, state, presence, metadata)
     local acceptuser = true
     print("User is %s", presence.session_id)
