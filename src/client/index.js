@@ -1,18 +1,20 @@
-let Phaser = require('phaser');
+let Phaser = require('phaser')
 let nakamajs = require('@heroiclabs/nakama-js')
-let DeviceUUID = require('uuid/v4')
-const verboseLogging = true;
-const useSSL = false;
+let uuid_v4 = require('uuid/v4')
+const verboseLogging = true
+const useSSL = false
 
-var currentSession = null;
-var matchId = null;
-var canPlay = false;
+const MOVE_OPCODE = 1
+
+let currentSession = null
+let matchId = null
+let canPlay = false
 
 class MainScene extends Phaser.Scene {
 
   constructor () {
-    super({key: 'main'});
-    this.avatar = {};
+    super({key: 'main'})
+    this.avatar = {}
   }
 
   preload() {
@@ -20,68 +22,35 @@ class MainScene extends Phaser.Scene {
   }
 
   create() {
-    let client = new nakamajs.Client('defaultkey');
-    client.verbose = verboseLogging;
-    client.ssl = useSSL;
-    let socket = this.authenticateAndHandleSession(client);
+    let client = new nakamajs.Client('defaultkey')
+    client.verbose = verboseLogging
+    client.ssl = useSSL
+    this.authenticateAndHandleSession(client)
     this.cameras.main.backgroundColor.setTo(255,255,255)
   }
 
   async authenticateAndHandleSession(client){
     const email = "keenloklai@gmail.com"
     const password = "3bc8f72e95a9"
-    const randomUserId = DeviceUUID()
+    const randomUserId = uuid_v4()
 
     // username: "user" can be added to the function below to authenticate user.
     // Else a random username will be assigned to the user
     client.authenticateDevice({id: randomUserId, create: true})
     .then(session => {
-      console.info("Successfully authenticated:", session);
+      console.info("Successfully authenticated:", session)
       // sessionHandler(session);
-      this.gameSessionHandler(session, client);
+      this.gameSessionHandler(session, client)
     })
     .catch(error => {
-      console.log("error : ", error);
-    });
-
-  }
-
-  sessionHandler(session) {
-    if (session) {
-      console.info("Session expired?", session.isexpired(Date.now() / 1000));
-    }
-    const socket = client.createSocket(useSSL, verboseLogging)
-    socket.connect(session).then(session => {
-      socket.onchannelmessage = (channelMessage) => {
-        console.info("Received chat message:", channelMessage)
-      }
-
-      const channelId = "pineapple-pizza-lovers-room";
-      socket.send({ channel_join: {
-          type: 1, // 1 = room, 2 = Direct Message, 3 = Group
-          target: channelId,
-          persistence: false,
-          hidden: false
-        } })
-      .then(response => {
-        console.info("Successfully joined channel:", response.channel.id);
-        socket.send({ channel_message_send: {
-            channel_id: response.channel.id,
-            content: {"message": "Pineapple doesn't belong on a pizza!"}
-          } })
-        .then(messageAck => {
-          console.info("Successfully sent chat message:", messageAck);
-        })
-        .catch(e => {
-          console.log("error: ", e);
-        })
-      })
+      console.log("error : ", error)
     })
+
   }
 
   gameSessionHandler(session, client) {
     this.id = session.username
-    this.avatar[this.id] = this.add.sprite(0, 0, "avatar")
+    this.avatar[this.id] = this.add.sprite(0, 0, "avatar").setScale(0.25)
     const socket = client.createSocket(useSSL, verboseLogging)
     socket.connect(session).then(session => {
       // var id = "<matchid>";
@@ -91,8 +60,8 @@ class MainScene extends Phaser.Scene {
       //   console.log("Created match with ID:", response.match.match_id)
       // })
       const message = { matchmaker_add: {
-          min_count: 2,
-          max_count: 4,
+          min_count: 3,
+          max_count: 3,
           query: "*",
           string_properties: {
             region: "europe"
@@ -100,57 +69,91 @@ class MainScene extends Phaser.Scene {
           numeric_properties: {
             rank: 8
           }
-        }};
-      let ticket;
+        }}
+      let ticket
       socket.send(message).then(ticket => {
-        console.log("Ticket received", ticket);
-        ticket = ticket;
+        console.log("Ticket received", ticket)
+        ticket = ticket
       })
       socket.onmatchmakermatched = (matched) => {
         console.info("Received MatchmakerMatched message: ", matched);
         console.info("Matched opponents: ", matched.users);
+        this.connectedOpponents = matched.users
         this.addPlayers(matched.users)
         const message = {
           match_join: {
             token: matched.token
           }
-        };
+        }
         socket.send(message).then(response => {
           console.log("Match join", response)
           matchId = response.match.match_id
-        });
+        })
       }
     })
 
-    this.input.on("pointermove", ({x, y}) => {
-      let id = matchId;
-      let opCode = 1;
+    this.createListeners(socket)
+    this.handleUsers(socket)
+  }
+
+  createListeners (socket) {
+  // for sending mouse information
+    this.input.on('pointermove', ({x, y}) => {
+      let id = matchId
+      let opCode = MOVE_OPCODE
       let data = {x, y}
-      const message = {match_data_send:
+      const message = {
+        match_data_send:
           {match_id: id, op_code: opCode, data: data}
       }
       socket.send(message).then(response => {
-        console.log("Data sent", response)
+        console.log('Data sent', response)
         this.avatar[this.id].x = x
         this.avatar[this.id].y = y
       })
     })
 
+    // Handle received data from match
     socket.onmatchdata = (result) => {
-      let content = result.data;
+      let content = result.data
       switch (result.op_code) {
-        case 1:
+        case MOVE_OPCODE:
           // console.log(content, result)
           let id = result.presence.username
           this.avatar[id].x = content.x
           this.avatar[id].y = content.y
           break
         default:
-          console.log("Error: wrong op_code", result)
+          console.log('Error: wrong op_code', result)
           break
       }
     }
-    return socket
+  }
+
+  handleUsers(socket) {
+    let self = this
+    socket.onmatchpresence = (presences) => {
+      // Remove all users who left.
+      self.connectedOpponents = self.connectedOpponents.filter((co) => {
+        let stillConnectedOpponent = true;
+        if (presences.leaves !== undefined) {
+          for (let i = 0; i < presences.leaves.length; i++) {
+            let leftOpponent = presences.leaves[i]
+            console.log("Someone left", leftOpponent, co)
+            if (leftOpponent.user_id == co.presence.user_id) {
+              stillConnectedOpponent = false;
+              console.log("Player removed", self.avatar)
+              self.avatar[leftOpponent.username].destroy()
+            }
+          }
+        }
+        return stillConnectedOpponent;
+      })
+      console.log("Remaining opponents", self.connectedOpponents)
+
+      // Add all users who joined.
+      self.connectedOpponents = self.connectedOpponents.concat(presences.joins);
+    }
   }
 
   addPlayers(users) {
@@ -159,7 +162,7 @@ class MainScene extends Phaser.Scene {
       if (this.avatar[id] !== undefined) {
         continue
       }
-      this.avatar[id] = this.add.sprite(0, 0, "avatar")
+      this.avatar[id] = this.add.sprite(0, 0, "avatar").setScale(0.25)
     }
   }
 

@@ -29,7 +29,7 @@
     "server": "docker-compose -f docker-compose.yml up",
     "build": "webpack --config webpack.client.config.babel.js",
     "app": "nodemon ./src/app.js",
-    "start": "npm run server | npm run build | npm run app"
+    "start": "npm run build | npm run app"
   },
   "author": "",
   "license": "ISC"
